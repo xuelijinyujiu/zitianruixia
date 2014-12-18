@@ -1,0 +1,25 @@
+library ieee;
+use ieee.std_logic_1164.all;
+entity add4 is
+port (a0,a1,a2,a3:in std_logic;
+      b0,b1,b2,b3:in std_logic;
+      s0,s1,s2,s3:in std_logic;
+             cout:out std_logic);
+end;
+architecture fd1 of add4 is
+  component h_add
+  port(a,b:in std_logic;
+       co,so:out std_logic);
+  end component;
+  component f_add
+  port(ain,bin,cin:in std_logic;
+          cout,sum:out std_logic);
+  end component;
+ signal c0,c1,c2 : std_logic;
+ begin
+ U1: h_add port map (a0,b0,c0,s0);
+ U2: f_add port map (a1,b1,c1,s1);
+ U3: f_add port map (a2,b2,c2,s2);
+ U4: f_add port map (a3,b3,cout,s3);
+ end;
+end architecture fd1 ;
