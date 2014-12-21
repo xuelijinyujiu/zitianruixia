@@ -7,6 +7,7 @@ entity exp5 is
                 dout:out std_logic_vector( 7 downto 0));
 end;
 architecture behav of exp5 is
+  signal reg8 : std_logic_vector(7 downto 0);
   begin
   process (clk,load)
   begin
