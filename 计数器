@@ -1,0 +1,31 @@
+library ieee;
+use ieee.std_logic_1164.all;
+entity cnt10 is
+	port(clk:in std_logic;
+		 clr:in std_logic;
+		 ena:in std_logic;
+		 carry_out: out std_logic;
+		 cq:out integer range 0 to 9);
+end cnt10;
+architecture behav of cnt10 is
+  signal cq1: integer range 0 to9;
+begin
+	process(clk,clr,ena)
+	begin
+		if clr='1' then cq1<=0;
+		elsif clk'event and clk='1' then
+		  if ena='1' then
+			if cq1<9 then cq1<=cq1+1;
+			else cq1<=0;
+			end if;
+		  end if;
+		end if;
+	end process;
+process(cq1)
+begin
+   if cq1=9 then carry_out<='1';
+   else carry_out<='0';
+   end if;
+end process;
+cq<=cq1;
+end behav;
