@@ -1,0 +1,237 @@
+	#include <reg51.h>
+#include <stdio.h>
+#include <intrins.h>
+
+#define BUSYFLAG 0x80
+#define BLINK 0x01
+#define NOBLINK 0x00
+
+unsigned char LCMReadState(void);
+void LCMDelay(int);
+void LCMWriteCmd(unsigned char);
+void LCMWriteData(unsigned char);
+void LCMClear(void);
+void LCMInit(void);
+void LCMGotoXY(unsigned char,unsigned char);
+void LCMDisplayChar(unsigned char,unsigned char,unsigned char);
+void LCMDisplayString(unsigned char,unsigned char,unsigned char*);
+void LCMBlink(unsigned char,unsigned char,unsigned char);
+
+
+#define LCM_DB P2
+
+sbit LCM_RS=P1^0;//数据命令选择端
+sbit LCM_RW=P1^1;//读/写选择端
+sbit LCM_E=P1^2;//使能端
+sbit clk=P1^3;
+sbit date=P1^4;
+sbit cs=P1^5;
+sbit s1=P0^0;
+sbit s2=P0^1;
+sbit s3=P0^2;
+sbit BUZ_CON=P1^7;
+int s;
+
+unsigned int data DelayConst=140;
+void LCMDelay(int ms)  
+{
+unsigned int i,cnt;
+cnt=DelayConst*ms;
+for(i=0;i<cnt;i++);
+}
+unsigned char LCMReadState(void)
+{
+	unsigned char state;
+	LCM_E=0;
+	LCM_RS=0;
+	LCM_RW=1;
+	LCM_E=1;
+	_nop_();
+	_nop_();
+	state=LCM_DB;
+	LCM_E=0;
+	return state;
+}
+void LCMClear(void)	
+{
+LCMDelay(1);
+LCM_E=0;
+LCM_RS=0;
+LCM_RW=1;
+LCM_DB=0x01;
+LCM_E=1;
+_nop_();
+_nop_();
+LCM_E=0;
+LCMDelay(1);
+}
+void LCMWriteCmd(unsigned char cmd)	 
+{
+LCMDelay(1);
+LCM_E=0; 
+LCM_RS=0;
+LCM_RW=0;
+LCM_DB=cmd;
+LCM_E=1;
+_nop_();
+_nop_();
+LCM_E=0;
+}
+void LCMWriteData(unsigned char dc)
+{
+while(LCMReadState()&BUSYFLAG);
+LCM_E=0;
+LCM_RS=1;
+LCM_RW=0;
+LCM_DB=dc;
+LCM_E=1;
+_nop_();
+_nop_();
+LCM_E=0;
+}
+void LCMInit(void)	
+{
+LCMDelay(60);
+LCMWriteCmd(0x38);
+LCMDelay(5);
+LCMWriteCmd(0x38);
+LCMDelay(1);
+LCMWriteCmd(0x38);
+while(LCMReadState()&BUSYFLAG);
+LCMWriteCmd(0x08);
+while(LCMReadState()&BUSYFLAG);
+LCMWriteCmd(0x01);
+while(LCMReadState()&BUSYFLAG);
+LCMWriteCmd(0x06);
+while(LCMReadState()&BUSYFLAG);
+LCMWriteCmd(0x0e);
+while(LCMReadState()&BUSYFLAG);
+}
+void LCMGotoXY(unsigned char x,unsigned char y)	 //移动光标到X行，Y列
+{
+unsigned char cmd;
+if(x==0)
+{
+cmd=0x80|y;
+}
+else
+{
+ cmd=0x80|0x40|y;
+}
+LCMWriteCmd(cmd);
+while(LCMReadState()&BUSYFLAG);
+ }
+void LCMDisplayChar(unsigned char x,unsigned char y,unsigned char ch)
+{
+LCMGotoXY(x,y);
+LCMWriteData(ch);
+}
+void LCMDisplayString(unsigned char x,unsigned char y,unsigned char* str)  
+{
+unsigned char ptr;
+ptr=0;
+while(*(str+ptr)!=0)
+{
+LCMDisplayChar(x,(y+ptr),*(str+ptr));
+ptr++;
+}
+}
+void LCMBlink(unsigned char x,unsigned char y,unsigned char cmd)//将指定位置显示的字符闪烁（同时关闭光标）
+{
+LCMGotoXY(x,y);
+if(cmd==BLINK)
+{
+LCMWriteCmd(0x0d);
+}
+else
+{
+LCMWriteCmd(0x0c);
+}
+}
+
+unsigned char code display[]={"Voltage :"};
+
+unsigned int ADConvert()
+{
+   int i;
+   unsigned int ad;
+   ad=0;
+   date=1;
+   cs=0;
+   for(i=0;i<10;i++)
+   {
+      ad<<=1;
+	  clk=0;
+	  _nop_();
+	  _nop_();
+	  _nop_();
+	  clk=1;
+	  if(date)   ad |= 0x01;
+	  else ad &= 0xFFFE;
+	}
+
+	cs=1;
+	return ad;
+}
+
+float adcai()
+{
+   unsigned int ad;
+   float adf;
+   ad=ADConvert();
+   ad=ADConvert();
+   adf=(ad*5.0)/1024.0;
+   return adf;
+}
+
+void displaydianya()
+{
+   unsigned char a2,a1,a0;
+
+   s=(int)100*(adcai());
+   a2=s/100+0x30;
+   a1=(s/10)%10+0x30;
+   a0=s%10+0x30;
+   LCMWriteCmd(0x80+40);
+   LCMDisplayString(1,0,"Voltage:");
+   LCMDisplayChar(1,9,a2);
+   LCMDisplayChar(1,10,'.');
+   LCMDisplayChar(1,11,a1);
+   LCMDisplayChar(1,12,a0);
+   LCMDisplayChar(1,13,'V');
+}
+
+void main(void)
+{  
+   LCMInit();
+   LCMClear();
+   
+  while(1)
+  {
+     if((s1==0)&&(s2==1)&&(s3==1))
+       {
+       LCMDisplayString(0,0," Happy New Year !");
+       LCMDisplayString(1,0," ### welcome  ###");
+        }
+     if((s2==0)&&(s1==0)&&(s3==1))
+       {
+       LCMDisplayString(0,0,"  wang  jiu  na  ");
+       LCMDisplayString(1,0,"    208120606    ");
+       }
+     if((s3==0)&&(s1==0)&&(s2==0)) 
+     {
+	  LCMInit();
+      LCMClear();
+      displaydianya();
+          
+      if((s>400)|(s<100))		
+       {
+	 unsigned char i=0;
+         BUZ_CON=0;
+           for(i=0;i<255;i++);
+	   BUZ_CON=1;
+        }
+      }		
+    } 
+}
+
