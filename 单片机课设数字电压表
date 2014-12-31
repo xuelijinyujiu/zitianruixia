@@ -1,0 +1,215 @@
+#include <reg51.h>
+#include <stdio.h>
+#include <intrins.h>
+#define BUSYFLAG 0x80
+#define BLINK 0x01
+#define NOBLINK 0x00
+unsigned char LCMReadState(void);
+void LCMDelay(int);
+void LCMWriteCmd(unsigned char);
+void LCMWriteData(unsigned char);
+void LCMClear(void);
+void LCMInit(void);
+void LCMGotoXY(unsigned char,unsigned char);
+void LCMDisplayChar(unsigned char,unsigned char,unsigned char);
+void LCMDisplayString(unsigned char,unsigned char,unsigned char*);
+void LCMBlink(unsigned char,unsigned char,unsigned char);
+#define LCM_DB P2
+#define OSC 11059200
+
+sbit LCM_RS=P0^0;
+sbit LCM_RW=P0^1;
+sbit LCM_E=P0^2;
+sbit CLK=P1^0;
+sbit DATA=P1^1;
+sbit CS=P1^2;
+sbit sw1=P1^3;
+sbit sw2=P1^4;
+sbit sw3=P1^5;
+sbit sw4=P1^6;
+sbit buz=P1^7;
+
+unsigned int data DelayConst=140;
+void LCMDelay(int ms)  //延时函数
+{
+unsigned int i,cnt;
+cnt=DelayConst*ms;
+for(i=0;i<cnt;i++);
+}
+unsigned char LCMReadState(void)//查询函数
+{
+unsigned char state;
+LCM_E=0;
+LCM_RS=0;
+LCM_RW=1;
+LCM_E=1;
+_nop_();
+_nop_();
+state=LCM_DB;
+LCM_E=0;
+return state;
+}
+void LCMClear(void)	//清屏函数
+{
+LCMDelay(1);
+LCM_E=0;
+LCM_RS=0;
+LCM_RW=1;
+LCM_DB=0x01;
+LCM_E=1;
+_nop_();
+_nop_();
+LCM_E=0;
+LCMDelay(1);
+}
+void LCMWriteCmd(unsigned char cmd)	 //向LCM写入控制字
+{
+LCMDelay(1);
+LCM_E=0;
+LCM_RS=0;
+LCM_RW=0;
+LCM_DB=cmd;
+LCM_E=1;
+_nop_();
+_nop_();
+LCM_E=0;
+}
+void LCMWriteData(unsigned char dc)//向LCM写入数据
+{
+while(LCMReadState()&BUSYFLAG);
+LCM_RS=1;
+LCM_RW=0;
+LCM_DB=dc;
+LCM_E=1;
+_nop_();
+_nop_();
+LCM_E=0;
+}
+void LCMInit(void)	//初始化LCM
+{
+LCMDelay(60);
+LCMWriteCmd(0x38);
+LCMDelay(5);
+LCMWriteCmd(0x38);
+LCMDelay(1);
+LCMWriteCmd(0x38);
+while(LCMReadState()&BUSYFLAG);
+LCMWriteCmd(0x08);
+while(LCMReadState()&BUSYFLAG);
+LCMWriteCmd(0x01);
+while(LCMReadState()&BUSYFLAG);
+LCMWriteCmd(0x06);
+while(LCMReadState()&BUSYFLAG);
+LCMWriteCmd(0x0e);
+while(LCMReadState()&BUSYFLAG);
+}
+void LCMGotoXY(unsigned char x,unsigned char y)	 //移动光标到X行，Y列
+{
+unsigned char cmd;
+if(x==0)
+{
+cmd=0x80|y;
+}
+else
+{
+ cmd=0x80|0x40|y;
+}
+LCMWriteCmd(cmd);
+while(LCMReadState()&BUSYFLAG);
+ }
+void LCMDisplayChar(unsigned char x,unsigned char y,unsigned char ch)//在指定位置显示一个字符
+{
+LCMGotoXY(x,y);
+LCMWriteData(ch);
+}
+void LCMDisplayString(unsigned char x,unsigned char y,unsigned char* str)  //在指定位置显示字符串
+{
+unsigned char ptr;
+ptr=0;
+while(*(str+ptr)!=0)
+{
+LCMDisplayChar(x,(y+ptr),*(str+ptr));
+ptr++;
+}
+}
+void LCMBlink(unsigned char x,unsigned char y,unsigned char cmd)//将指定位置显示的字符闪烁（同时关闭光标）
+{
+LCMGotoXY(x,y);
+if(cmd==BLINK)
+{
+LCMWriteCmd(0x0d);
+}
+else
+{
+LCMWriteCmd(0x0c);
+}
+}
+
+unsigned int ADConvert(void)	   //A/D转换函数
+{
+ int i;
+ unsigned int ad;
+ ad=0;
+ DATA=1;
+ CS=0;
+ for(i=0;i<10;i++)
+ {
+  ad<<=1;
+  CLK=0;
+  _nop_();
+  _nop_();
+  _nop_();
+  CLK=1;
+  if(DATA) ad|=0x01;
+  else ad &=0xFFFE;
+ }
+  CS=1;
+  return ad;
+}
+void main()			//主函数
+{
+unsigned int ad;
+ float adf;
+ unsigned int s;
+ unsigned char a0,a1,a2;
+LCMInit();
+LCMClear();
+while(1)
+{
+if((sw1==0)&&(sw2==1)&&(sw3==1)&&(sw4==1))
+{
+LCMDisplayString(0,0," Happy New Year !");
+LCMDisplayString(1,0,"###welcome###");
+}
+if((sw2==0)&&(sw1==1)&&(sw3==1)&&(sw4==1))
+{
+LCMDisplayString(0,0,"wang jiu na ");
+LCMDisplayString(1,0," 208120606 ");
+}
+if((sw3==0)&&(sw1==1)&&(sw2==1)&&(sw4==1))
+{
+ad=ADConvert();	//	取出上次数据
+ ad=ADConvert(); //	取出本次数据
+ adf=(ad*5.0)/1024.0;//将二进制转换成十进制
+ s=100*adf;							
+ a0=s%10+0x30;
+ a1=(s/10)%10+0x30;
+ a2=s/100+0x30;
+ if(adf>=4)
+ {
+ buz=0;
+ }
+ else
+ {
+ buz=1;
+ }
+LCMDisplayString(0,0,"  a2.a1a0  ");
+}
+if((sw4==0)&&(sw1==1)&&(sw2==1)&&(sw3==1))
+{
+LCMDisplayString(0,0,"###Goodbye!###");
+LCMDisplayString(1,0,"~~~~~~~~~~~~~~");
+}
+}
+}
+ 
