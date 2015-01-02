@@ -1,0 +1,8 @@
+clear all
+	syms t
+	f=maple(‘Heaviside(t+3)-2*Heaviside(t)');
+	t1=-5:0.01:5;
+	ff=subs(f,t,t1);
+	plot(t1,ff)；
+  axis([-5,5,-1.2,1.2])
+	title('u(t+3)-2u(t)')
