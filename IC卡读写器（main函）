@@ -1,0 +1,92 @@
+#include <reg52.h>
+#include <stdio.h>
+#include <string.h> 
+#include "at24c02.h"
+#include "lcd1602.h"
+#include "key.h"
+#include "serve.h"
+#include "proce.h"
+uchar init(void)
+{
+	uchar buf[4]="1234";
+	uchar d_buf[4]={0};
+	uchar i,add;
+	init_lcd1602();		
+	read_at24c02_buf(0xAA,d_buf,4);
+	add=0x40;
+	i=0;
+	if(strncmp(buf,d_buf,4)!=0)
+	{
+		write_at24c02_buf(0xAA,"1234",4);
+		write_string(LINE2,"  welcome    ");
+		delay(10000);
+		i=20;
+		write_at24c02_buf(SECRET_ADD,"123456",6);
+		write_at24c02(0X00,0);
+		write_at24c02(0X01,0);
+	}	
+	write_string(LINE1+9,"Bayern");
+	return i;
+}
+uchar rst(void)
+{
+	uchar buf[4]="1234";
+	uchar d_buf[4]={0};
+	uchar i;
+	init_lcd1602();		
+	write_at24c02_buf(0xAA,"1234",4);
+	write_string(LINE2,"      reset MCU !!      ");
+	i=20;
+	write_at24c02_buf(SECRET_ADD,"123456",6);
+	write_at24c02(0X00,0);
+	write_at24c02(0X01,0);
+	write_string(LINE1+9,"song");
+	return i;
+}	
+void main(void)
+{
+	uchar keynum = 16;
+	uchar i=0;
+	//uchar lose_err = 0;	
+	uchar flag=1;
+	i = init();
+	//read_at24c02(0xff,&lose_err);
+	lcd1602_clear();
+	while(1)
+	{						   
+		display_sum();
+		if(keytest())
+		{
+			keynum = getkeynum();
+		}
+		if(keynum==CANCEL)
+		{
+			i = rst();
+			keynum=16;
+		}
+		/*充值*/
+		if(keynum == ADD)
+		{
+			add_pro();
+			i=30;
+			keynum=16;
+		}
+	 	/*sub*/
+		if(keynum == SUB)
+		{
+			sub_pro();
+			i=30;
+			keynum=16;
+		}
+		if(i==0 && flag==1)
+		{flag = 0;
+			write_string(LINE2,"   208120606    ");
+			write_string(LINE1+9,"Bayern");
+		}
+		if(i>0)
+		{
+			flag = 1;
+			i--	;
+		}
+	}
+	}
