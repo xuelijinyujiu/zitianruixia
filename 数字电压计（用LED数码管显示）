@@ -28,9 +28,9 @@ unsigned int ADConvert(void)
 		_nop_();
 		CLK=1;
 		if(DATA) 
-		   ad&=0x01;
+		   ad|=0x01;
 		else 
-		   ad|=0xFFFE;
+		   ad&=0xFFFE;
 	}
 	CS=1;
 	return ad;
